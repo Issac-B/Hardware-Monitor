@@ -4,16 +4,17 @@
 LiquidCrystal_I2C lcd(0x27, 20, 4); //Intializes LCD on proper I2C Address and screen resolution of 20x4 bits.
 int bLED = 10;  //Variable for LEDs
 int rLED = 9;  //Fail safe if alarm fails
+int buzzer_pin = 5; 
 
 
 
 
 //Structure to facilitate parsing of buzzer alarm and keep track of timing and frequency
-struct buzzer  
+struct buzzer
 {
   bool active = false;  //Buzzer intially off
-  int pin = 8;  //Buzzer pin
-  int freq = 1000; //sets frequency 
+  int pin = 5;  //Buzzer pin
+  int freq = 1000; //sets frequency
   unsigned long current_micro = 0;  //Datatype for Micros()
   unsigned long next_micro = 0; //Datatype for Micros()
 };
@@ -23,7 +24,7 @@ buzzer alarm;
 
 char c; // Sets up Variable
 int  whichLine; // to keep track of which line of data we are parsing
-int maxTemp = 80;  //Max Temperature (****CAN CHANGE TO ANY VALUE***)
+int maxTemp = 85;  //Max Temperature (****CAN CHANGE TO ANY VALUE***)
 
 // Structure to facilitate parsing of serial data and keep track of temps
 struct temp
@@ -50,6 +51,8 @@ void setup()
   delay(10);
   lcd.clear();  //Clears screen
   Serial.begin(9600); //Sets bit rate of serial monitor same as C# GUI.
+
+  pinMode(buzzer_pin, OUTPUT);
 }
 
 void loop()
@@ -58,7 +61,7 @@ void loop()
   extract_temp();
   update_io();
   //debug();  //Debugging loop, remove "//" to enable debug
-  buzzer();
+  //buzzer();
 }
 
 void debug()
@@ -66,28 +69,34 @@ void debug()
   lcd.setCursor(0,3);
   lcd.print(lineOne.snapshot[1]);
 }
+
+
+
 // function to update the LEDs and sound the buzzer
 void update_io()
 {
-  if (lineOne.value > maxTemp)
+  if (lineOne.value >= maxTemp)
   {
     // alarmy stuff!
     digitalWrite(rLED, HIGH); //Fail safe if alarm fails
-    alarm.active = true;
+    //alarm.active = true;
+    analogWrite(buzzer_pin, 127);
   }
 
-  else if (lineTwo.value > maxTemp)
+  else if (lineTwo.value >= maxTemp)
   {
     // alarmy stuff!
     digitalWrite(rLED, HIGH); //Fail safe if alarm fails
-    alarm.active = false;
+    //alarm.active = false;
+    analogWrite(buzzer_pin, 127);
   }
 
   else
   {
     // turn off the alarmy stuff!
     digitalWrite(rLED, LOW); //Fail safe if alarm fails
-    alarm.active = false;
+    //alarm.active = false;
+    digitalWrite(buzzer_pin, LOW);
   }
 }
 
@@ -103,14 +112,14 @@ void buzzer()
   if (alarm.active) //active alarm function
   {
     alarm.current_micro = micros(); //Keeps track of alarm time
-    
-    if(alarm.current_micro >= alarm.next_micro) 
+
+    if(alarm.current_micro >= alarm.next_micro)
     {
       alarm.pin ^= 1; //XOR Gate
       alarm.next_micro = micros()+((1000000/alarm.freq)/2);
     }
   }
-  
+
   else
   {
     digitalWrite(alarm.pin, LOW);
@@ -136,9 +145,9 @@ void extract_temp()
   // combine the two individual int values into a single integer
   lineOne.value = lineOne.intOne*10 + lineOne.intTwo;
   lineTwo.value = lineTwo.intOne*10 + lineTwo.intTwo;
-  
+
   //Used for debugging below
-  //lineOne.value = lineOne.intOne + lineOne.intTwo*10;  
+  //lineOne.value = lineOne.intOne + lineOne.intTwo*10;
   //lineTwo.value = lineTwo.intOne + lineTwo.intTwo*10;
 
 // Swapped (used for debugging issues)
